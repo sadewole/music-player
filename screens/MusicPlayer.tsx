@@ -13,7 +13,7 @@ import {
 import TrackPlayer, {
   Capability,
   Event,
-  // RepeatMode,
+  RepeatMode,
   State,
   usePlaybackState,
   useProgress,
@@ -22,7 +22,7 @@ import TrackPlayer, {
 
 import Slider from '@react-native-community/slider';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-// import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import songs from '../model/data';
 
 type SongT = {
@@ -35,11 +35,15 @@ type SongT = {
 
 const {width} = Dimensions.get('window');
 
-const events = [Event.PlaybackTrackChanged, Event.PlaybackError];
+const events = [
+  Event.PlaybackTrackChanged,
+  Event.PlaybackError,
+  Event.PlaybackState,
+];
 
 const setupPlayer = async () => {
   try {
-    await TrackPlayer.setupPlayer();
+    await TrackPlayer.setupPlayer({waitForBuffer: true});
     await TrackPlayer.updateOptions({
       capabilities: [
         Capability.Play,
@@ -67,7 +71,7 @@ const MusicPlayer = () => {
   const progress = useProgress();
   const [songIndex, setsongIndex] = useState(0);
   const [playPause, setPlayPause] = useState('ios-play-circle');
-  // const [repeatMode, setRepeatMode] = useState('off');
+  const [repeatMode, setRepeatMode] = useState('off');
 
   const scrollX = useRef(new Animated.Value(songIndex * width)).current;
   const songSlider: React.LegacyRef<Animated.FlatList<SongT>> = useRef(null);
@@ -105,6 +109,12 @@ const MusicPlayer = () => {
     if (event.type === Event.PlaybackError) {
       console.warn('An error occured while playing the current track.');
     }
+    // const mode = TrackPlayer.getRepeatMode();
+    // console.log(mode);
+
+    // if (event.type === Event.PlaybackTrackChanged && event.nextTrack === null) {
+    //   console.log('event.type', event.type);
+    // }
 
     if (event.type === Event.PlaybackTrackChanged && event.nextTrack !== null) {
       let trackIndex = await TrackPlayer.getCurrentTrack();
@@ -132,9 +142,41 @@ const MusicPlayer = () => {
         setPlayPause('ios-pause-circle');
         await TrackPlayer.play();
       } else {
+        console.log('is playingState', playingState);
         setPlayPause('ios-play-circle');
         await TrackPlayer.pause();
       }
+    }
+  };
+
+  const repeatIcon = () => {
+    if (repeatMode === 'off') {
+      return 'repeat-off';
+    }
+
+    if (repeatMode === 'track') {
+      return 'repeat-once';
+    }
+
+    if (repeatMode === 'repeat') {
+      return 'repeat';
+    }
+  };
+
+  const changeRepeatMode = () => {
+    if (repeatMode === 'off') {
+      TrackPlayer.setRepeatMode(RepeatMode.Track);
+      setRepeatMode('track');
+    }
+
+    if (repeatMode === 'track') {
+      TrackPlayer.setRepeatMode(RepeatMode.Queue);
+      setRepeatMode('repeat');
+    }
+
+    if (repeatMode === 'repeat') {
+      TrackPlayer.setRepeatMode(RepeatMode.Off);
+      setRepeatMode('off');
     }
   };
 
@@ -231,12 +273,12 @@ const MusicPlayer = () => {
             <Ionicons name="heart-outline" size={30} color="#888888" />
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => {}}>
-            {/* <MaterialCommunityIcons
+          <TouchableOpacity onPress={changeRepeatMode}>
+            <MaterialCommunityIcons
               name={`${repeatIcon()}`}
               size={30}
               color={repeatMode !== 'off' ? '#FFD369' : '#888888'}
-            /> */}
+            />
           </TouchableOpacity>
 
           <TouchableOpacity onPress={() => {}}>
