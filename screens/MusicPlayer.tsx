@@ -232,6 +232,7 @@ const MusicPlayer = () => {
             thumbTintColor="#FFD369"
             minimumTrackTintColor="#FFD369"
             maximumTrackTintColor="#fff"
+            tapToSeek
             onSlidingComplete={async value => {
               await TrackPlayer.seekTo(value);
             }}
