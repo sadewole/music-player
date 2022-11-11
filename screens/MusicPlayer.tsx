@@ -24,6 +24,8 @@ import Slider from '@react-native-community/slider';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import songs from '../model/data';
+import getDuration from '../utils/getDuration';
+import roundedTime from '../utils/roundedTime';
 
 type SongT = {
   id: number;
@@ -38,7 +40,6 @@ const {width} = Dimensions.get('window');
 const events = [
   Event.PlaybackTrackChanged,
   Event.PlaybackError,
-  Event.PlaybackState,
   Event.PlaybackQueueEnded,
 ];
 
@@ -63,13 +64,6 @@ const setupPlayer = async () => {
   } catch (error) {
     console.log(error);
   }
-};
-
-const getDuration = (val: string | number | Date) => {
-  const date = new Date(val);
-  const [minutes, seconds] = [date.getMinutes(), date.getSeconds()];
-
-  return `${minutes}:${`${seconds}`.padStart(2, '0')}`;
 };
 
 const MusicPlayer = () => {
@@ -106,12 +100,12 @@ const MusicPlayer = () => {
   }, []);
 
   useEffect(() => {
-    const position = progress.position;
-    const duration = progress.duration;
-    const isStopPlay = getDuration(duration) === getDuration(position);
+    const isPlayEnded =
+      roundedTime(progress.duration) === roundedTime(progress.position);
+
     TrackPlayer.getRepeatMode().then(mode => {
-      console.log('isStopPlay', isStopPlay, position, duration);
-      if (mode === RepeatMode.Off && isLastTrack) {
+      // console.log('isLastTrack', isLastTrack);
+      if (mode === RepeatMode.Off && isLastTrack && isPlayEnded) {
         TrackPlayer.seekTo(0);
         setPlayPause('ios-play-circle');
       }
@@ -130,17 +124,16 @@ const MusicPlayer = () => {
       console.warn('An error occured while playing the current track.');
     }
 
+    if (event.type !== Event.PlaybackTrackChanged) {
+      setIsLastTrack(true);
+    }
+
     if (event.type === Event.PlaybackTrackChanged && event.nextTrack !== null) {
+      setIsLastTrack(false);
       let trackIndex = await TrackPlayer.getCurrentTrack();
       if (trackIndex !== songIndex) {
         slideNext(trackIndex as number);
       }
-    }
-
-    if (event.type === Event.PlaybackQueueEnded) {
-      setIsLastTrack(true);
-    } else {
-      setIsLastTrack(false);
     }
   });
 
