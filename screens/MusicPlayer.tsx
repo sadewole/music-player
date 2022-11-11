@@ -39,6 +39,7 @@ const events = [
   Event.PlaybackTrackChanged,
   Event.PlaybackError,
   Event.PlaybackState,
+  Event.PlaybackQueueEnded,
 ];
 
 const setupPlayer = async () => {
@@ -50,6 +51,11 @@ const setupPlayer = async () => {
         Capability.Pause,
         Capability.SkipToNext,
         Capability.SkipToPrevious,
+        Capability.Stop,
+      ],
+      notificationCapabilities: [
+        Capability.Play,
+        Capability.Pause,
         Capability.Stop,
       ],
     });
@@ -72,6 +78,7 @@ const MusicPlayer = () => {
   const [songIndex, setsongIndex] = useState(0);
   const [playPause, setPlayPause] = useState('ios-play-circle');
   const [repeatMode, setRepeatMode] = useState('off');
+  const [isLastTrack, setIsLastTrack] = useState(false);
 
   const scrollX = useRef(new Animated.Value(songIndex * width)).current;
   const songSlider: React.LegacyRef<Animated.FlatList<SongT>> = useRef(null);
@@ -98,6 +105,19 @@ const MusicPlayer = () => {
     setupPlayer();
   }, []);
 
+  useEffect(() => {
+    const position = progress.position;
+    const duration = progress.duration;
+    const isStopPlay = getDuration(duration) === getDuration(position);
+    TrackPlayer.getRepeatMode().then(mode => {
+      console.log('isStopPlay', isStopPlay, position, duration);
+      if (mode === RepeatMode.Off && isLastTrack) {
+        TrackPlayer.seekTo(0);
+        setPlayPause('ios-play-circle');
+      }
+    });
+  }, [isLastTrack, playBackState, progress.duration, progress.position]);
+
   const slideNext = (val: number) => {
     songSlider.current?.scrollToOffset({
       offset: val * width,
@@ -109,18 +129,18 @@ const MusicPlayer = () => {
     if (event.type === Event.PlaybackError) {
       console.warn('An error occured while playing the current track.');
     }
-    // const mode = TrackPlayer.getRepeatMode();
-    // console.log(mode);
-
-    // if (event.type === Event.PlaybackTrackChanged && event.nextTrack === null) {
-    //   console.log('event.type', event.type);
-    // }
 
     if (event.type === Event.PlaybackTrackChanged && event.nextTrack !== null) {
       let trackIndex = await TrackPlayer.getCurrentTrack();
       if (trackIndex !== songIndex) {
         slideNext(trackIndex as number);
       }
+    }
+
+    if (event.type === Event.PlaybackQueueEnded) {
+      setIsLastTrack(true);
+    } else {
+      setIsLastTrack(false);
     }
   });
 
@@ -136,13 +156,11 @@ const MusicPlayer = () => {
 
   const togglePlayBack = async (playingState: State) => {
     const currentTrack = await TrackPlayer.getCurrentTrack();
-    console.log(currentTrack, playingState, State.Playing);
     if (currentTrack != null) {
       if (playingState === State.Paused || playingState === State.Ready) {
         setPlayPause('ios-pause-circle');
         await TrackPlayer.play();
       } else {
-        console.log('is playingState', playingState);
         setPlayPause('ios-play-circle');
         await TrackPlayer.pause();
       }
